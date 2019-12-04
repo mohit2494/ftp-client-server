@@ -13,8 +13,8 @@ from ftpclientserver import ftp_server
 import time
 ''' important control variables for data and control connection '''
 port_for_response = 6548
-peer_port = 7712
-peer_port_for_response = 5000
+peer_port = 9100
+peer_port_for_response = 9110
 # TODO:: send this as an argument to ftp_server
 server_port = None
 localhost = "127.0.0.1"
@@ -24,12 +24,17 @@ encoding = "utf-8"
 ''' class for data connection handling with the server '''
 class client_data_thread(threading.Thread):
 
-    # importing global variables
-    global port_for_response
-    global localhost
+    # # importing global variables
+    # global port_for_response
+    # global localhost
 
     ''' class constructor '''
     def __init__(self, cmd, file):
+        global port_for_response
+        global localhost
+        print("-------------------------")
+        print(port_for_response,localhost)
+        print("-------------------------")
         self.data_port = port_for_response
         self.sock = socket.socket()
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -167,6 +172,7 @@ class client_for_ftp:
         counter = 0
         global port_for_response
         global peer_port
+        global peer_port_for_response
         while True:
             if self.control_socket and self.client_response :
                 self.control_socket.close()
@@ -177,6 +183,7 @@ class client_for_ftp:
                 self.control_socket = socket.socket()
                 self.control_socket.settimeout(2)
                 self.control_socket.connect(("127.0.0.1", peer_port))
+                port_for_response = peer_port_for_response
                 if self.control_socket:
                     self.client_response = client_response(self.control_socket)
                     self.client_response.setDaemon(True)
@@ -190,15 +197,10 @@ class client_for_ftp:
                 continue
 
         self.authenticate(["authenticate","user","pass"])
-        port_for_response = self.client_response.get_last_response_from_server()
+        print("-------------------------")
         print(port_for_response)
-        port_for_response = int(port_for_response)
+        print("-------------------------")
         self.get_chunks_from_server(dict['chunk_list']["1"])
-        # count = 0
-        # while len(list_of_chunks):
-        #     if self.get(["get", file]):
-        #         list_of_chunks.pop(index(file))
-
 
 
 

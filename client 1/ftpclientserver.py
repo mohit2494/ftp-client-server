@@ -12,8 +12,8 @@ data_thread_message = ""                # variable for storing data messages
 localhost = "127.0.0.1"                 # local ip of ftp server
 encoding = "utf-8"                      # encoding standard for info. exchange
 buffer_size = 1024                      # buffer size of info. exchange
-command_port = 7712                     # port of connection of server
-data_port = 5000                        # port of data connection
+command_port = 9100                     # port of connection of server
+data_port = 9110                        # port of data connection
 
 ''' server side data connection handler '''
 class ftp_data_handler(threading.Thread):
