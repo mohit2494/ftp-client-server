@@ -13,7 +13,7 @@ from ftpclientserver import ftp_server
 import time
 ''' important control variables for data and control connection '''
 port_for_response = 6548
-peer_port = 7713
+peer_port = 7714
 # TODO:: send this as an argument to ftp_server
 server_port = None
 localhost = "127.0.0.1"
@@ -161,12 +161,9 @@ class client_for_ftp:
         counter = 0
 
         while True:
-            print(1)
             if self.control_socket:
                 self.control_socket.close()
                 self.client_response.join()
-                self.control_socket = socket.socket()
-            print(self.control_socket)
             try:
                 self.control_socket.connect(("127.0.0.1", peer_port))
             except ConnectionRefusedError:
@@ -183,10 +180,10 @@ class client_for_ftp:
             self.client_response.start()
 
             port_for_responses = int(self.client_response.get_last_response_from_server())
-            print(port_for_responses,"asvlanlnls")
             self.authenticate(["authenticate","user","pass"])
             get_chunks_from_server(list_of_chunks)
-        print("heere")
+
+
 
     def get_chunks_from_server(self,chunk_list):
         for file in chunk_list:
