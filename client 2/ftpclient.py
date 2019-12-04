@@ -4,20 +4,20 @@
 import socket                           # for importing socket functions
 import threading                        # for running threads
 import os                               # for accessing files, folders on client & server
-import sys                              # sys for getting system messages                              
+import sys                              # sys for getting system messages
 import pdb                              # for python debugging
 from lib2to3.fixer_util import String   # for python2 to python3 conversion on the go
 import cmd                              # command line utilities
 
 ''' important control variables for data and control connection '''
-port_for_response = 6548
+port_for_response = 7713
 localhost = "127.0.0.1"
 buffer_size = 1024
 encoding = "utf-8"
 
 ''' class for data connection handling with the server '''
 class client_data_thread(threading.Thread):
-    
+
     # importing global variables
     global port_for_response
     global localhost
@@ -85,7 +85,7 @@ class client_data_thread(threading.Thread):
                 f.close()
             print("Cannot open file on client side...")
         self.data_connection.close()
-    
+
     # upload command for sending file bytes from client directory to server directory
     def upload(self):
         complete_path = os.path.join(self.current_dir, self.filename)
@@ -115,7 +115,7 @@ class client_response(threading.Thread):
     def run(self):
         while True:
             self.empty()
-    
+
     # read server response until empty
     def empty(self):
         global buffer_size
@@ -134,7 +134,7 @@ class client_for_ftp:
         self.current_directory = os.path.abspath("./downloads/")
         if not os.path.exists(self.current_directory):
             os.makedirs(self.current_directory)
-        
+
         # keep taking in commands from terminal
         while True:
             input_arr = input("\n punch in your command, please :").lower().split(" ")
@@ -159,7 +159,7 @@ class client_for_ftp:
         if len(input_arr) != 3:
             print("parameters passed to ftpclient command were not correct. use format : <IP> <port>")
             print("trying connecting using the default connection strings ...")
-            input_arr = ["ftpclient", "127.0.0.1", 7711]
+            input_arr = ["ftpclient", "127.0.0.1", 7712]
 
         # convert port to integer value
         try:
@@ -182,7 +182,7 @@ class client_for_ftp:
             return
 
         print("Connection established on port {}.".format(ctrlPort))
-    
+
     # command for client authentication
     def authenticate(self, input_arr):
         if len(input_arr) < 3:
@@ -194,7 +194,7 @@ class client_for_ftp:
             print("seems you've not connected to the ftp server, please try again...")
             return
         self.data_port_connect(cmd = "authenticate", file="")
-    
+
     # command for listing server directory
     def dir(self, input_arr):
         if len(input_arr) > 1:
@@ -219,7 +219,7 @@ class client_for_ftp:
             print("seems you've not connected to the ftp server, please try again...")
             return
         self.data_port_connect(cmd="get", file=name)
-    
+
     # command for file upload
     def upload(self, input_arr):
         if len(input_arr) != 2:
@@ -248,7 +248,7 @@ class client_for_ftp:
         return
 
     # send message to server
-    def send_to_server(self, msg="", encoding="utf-8"):    
+    def send_to_server(self, msg="", encoding="utf-8"):
         self.control_socket.sendall(bytearray(msg+"\r\n", encoding))
 
     # command for communicating with server's data port
