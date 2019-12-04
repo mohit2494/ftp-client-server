@@ -4,8 +4,11 @@
 import socket                           # for importing socket functions
 import threading                        # for running threads
 import os                               # for accessing files, folders on client & server
-import sys                              # sys for getting system messages                              
+import sys                              # sys for getting system messages
 import pdb                              # for python debugging
+import math
+from fsplit.filesplit import FileSplit
+import json
 
 ''' important control variables for data and control connection '''
 data_thread_message = ""                # variable for storing data messages
@@ -14,10 +17,11 @@ encoding = "utf-8"                      # encoding standard for info. exchange
 buffer_size = 1024                      # buffer size of info. exchange
 command_port = 7711                     # port of connection of server
 data_port = 6548                        # port of data connection
-
+chuck_dictionary = {}
+list_of_split_files = []
 ''' server side data connection handler '''
 class ftp_data_handler(threading.Thread):
-    
+
     # class constructor
     def __init__(self, socket, cmd, data, filename = ""):
         self.data_socket = socket
@@ -37,7 +41,7 @@ class ftp_data_handler(threading.Thread):
             self.upload(self.filename)
         else:
             print("command not registered with the server. please try again....\r\n")
-    
+
     # method for handling dir command
     def dir(self):
         global data_thread_message
@@ -74,7 +78,7 @@ class ftp_data_handler(threading.Thread):
             self.data_socket.connect((localhost, data_port))
         except:
             data_thread_message = "oops! couldn't open data connection..."
-        
+
         try:
             try:
                 data = self.data_socket.recv(buffer_size)
@@ -96,16 +100,16 @@ class ftp_data_handler(threading.Thread):
 
 ''' server side control connection handler '''
 class ftp_command_handler(threading.Thread):
-    
+
     # class constructor
     def __init__(self, socket):
         self.socket = socket
         self.curr_dir = os.path.abspath("./files/")
+        self.split_dir = os.path.abspath("./files/splitfiles")
         self.data_socket = None
         threading.Thread.__init__(self)
         self.finished_running = False
         self.is_authenticated = False
-    
     # run method for implementing threading.Thread
     def run(self):
         while True:
@@ -129,22 +133,22 @@ class ftp_command_handler(threading.Thread):
         password = commands[2]
         if username == "user" and password == "pass":
             self.is_authenticated = True
-            self.send_back_resp("user authenticated!")
+            self.send_back_resp(json.dumps(chuck_dictionary))
         else:
             self.is_authenticated = False
             self.send_back_resp("wrong username or password")
-    
+
     # method for sending back response to client
     def send_back_resp(self, msg, encoding=encoding):
         print("sending back command response..."+msg)
         self.socket.sendall(bytearray(msg+"\r\n",encoding))
-    
+
     # method for closing control connection
     def close(self, commands):
         self.send_back_resp("closing control connection")
         self.socket.close()
         self.finished_running = True
-    
+
     # method for sending messages for buggy commands
     def send_err_response(self):
         self.send_back_resp("syntax error in command arugments")
@@ -156,8 +160,8 @@ class ftp_command_handler(threading.Thread):
             return
 
         if len(commands) > 2:
-            return 
-        
+            return
+
         dir = commands[1] if len(commands) == 2 else self.curr_dir
         # socket for streaming data using IPV4 addresses
         data_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -175,7 +179,7 @@ class ftp_command_handler(threading.Thread):
             self.send_back_resp(data_thread_message)
         except:
             self.send_back_resp("\ninternal error in developing data connection with server...")
-    
+
     # control method for implementing get command
     def get(self, commands):
         if not self.is_authenticated:
@@ -189,9 +193,9 @@ class ftp_command_handler(threading.Thread):
             return
         name = commands[1]
         print("trying to get file with name :"+name)
-        name = os.path.join(self.curr_dir, name)
+        name = os.path.join(self.split_dir, name)
         print("path resolved as : "+name+"...")
-        
+
         if not os.path.exists(name):
             self.send_back_resp("file not found on server. please try again...")
             return
@@ -249,9 +253,51 @@ class ftp_command_handler(threading.Thread):
 
 ''' class for running ftp server and handling client connections '''
 class ftp_server:
-    # basic class/socket setup
+    def join(self,fromdir, tofile):
+        output = open(tofile, 'wb')
+        parts  = os.listdir(fromdir)
+        parts.sort()
+        for filename in parts:
+            filepath = os.path.join(fromdir, filename)
+            fileobj  = open(filepath, 'rb')
+            while 1:
+                filebytes = fileobj.read()
+                if not filebytes: break
+                output.write(filebytes)
+            fileobj.close(  )
+        output.close(  )
+
+    def split(self,fromfile, todir, chunksize):
+        if not os.path.exists(todir):                  # caller handles errors
+            os.mkdir(todir)                            # make dir, read/write parts
+        else:
+            for fname in os.listdir(todir):            # delete any existing files
+                os.remove(os.path.join(todir, fname))
+        partnum = 0
+        input = open(fromfile, 'rb')                   # use binary mode on Windows
+        while 1:                                       # eof=empty string from read
+            chunk = input.read(chunksize)              # get next part <= chunksize
+            if not chunk: break
+            partnum  = partnum+1
+            filename = os.path.join(todir, ('part%04d' % partnum))
+            fileobj  = open(filename, 'wb')
+            fileobj.write(chunk)
+            fileobj.close()                            # or simply open(  ).write(  )
+        input.close(  )
+        assert partnum <= 9999                         # join sort fails if 5 digits
+        return partnum
+
     def __init__(self):
         # self.port = 7711
+        curr_dir = os.path.abspath("./files/")
+        split_dir = os.path.abspath("./files/splitfiles")
+        fs = self.split(fromfile=str(curr_dir)+"/test.pdf", todir = split_dir, chunksize=100000)
+        for file in os.listdir(split_dir):
+            list_of_split_files.append(file)
+        no_of_files = len(list_of_split_files)
+        for i in range(0,no_of_files):
+            key = (i%5)+1
+            chuck_dictionary[key] = chuck_dictionary.get(key,[])+[ list_of_split_files[i]]
         self.server_socket = socket.socket()
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind(("localhost", command_port))
