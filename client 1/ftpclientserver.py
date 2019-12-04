@@ -13,7 +13,7 @@ localhost = "127.0.0.1"                 # local ip of ftp server
 encoding = "utf-8"                      # encoding standard for info. exchange
 buffer_size = 1024                      # buffer size of info. exchange
 command_port = 7712                     # port of connection of server
-data_port = 6549                        # port of data connection
+data_port = 5000                        # port of data connection
 
 ''' server side data connection handler '''
 class ftp_data_handler(threading.Thread):
@@ -105,7 +105,6 @@ class ftp_command_handler(threading.Thread):
         threading.Thread.__init__(self)
         self.finished_running = False
         self.is_authenticated = False
-        self.send_back_resp(str(data_port))
 
     # run method for implementing threading.Thread
     def run(self):
@@ -130,7 +129,7 @@ class ftp_command_handler(threading.Thread):
         password = commands[2]
         if username == "user" and password == "pass":
             self.is_authenticated = True
-            self.send_back_resp("user authenticated!")
+            self.send_back_resp(str(data_port))
         else:
             self.is_authenticated = False
             self.send_back_resp("wrong username or password")

@@ -13,7 +13,8 @@ from ftpclientserver import ftp_server
 import time
 ''' important control variables for data and control connection '''
 port_for_response = 6548
-peer_port = 7713
+peer_port = 9011
+peer_port_for_response = 9010
 # TODO:: send this as an argument to ftp_server
 server_port = None
 localhost = "127.0.0.1"
@@ -116,11 +117,16 @@ class client_response(threading.Thread):
         self.conn = conn
         self.last_response = None
         threading.Thread.__init__(self)
+        self.close_flag = False
 
     # method for threading
     def run(self):
         while True:
             self.empty()
+            if self.close_flag:
+                break
+    def close(self):
+        self.close_flag = True
     def get_last_response_from_server(self):
         return self.last_response
     # read server response until empty
@@ -159,36 +165,51 @@ class client_for_ftp:
         server_thread.start()
         size = len(list_of_chunks)
         counter = 0
-
+        global port_for_response
+        global peer_port
         while True:
-            print(1)
-            if self.control_socket:
+            if self.control_socket and self.client_response :
                 self.control_socket.close()
-                self.client_response.join()
-                self.control_socket = socket.socket()
-            print(self.control_socket)
+                self.control_socket = None
+                self.client_response.close()
+                self.client_response = None
             try:
+                self.control_socket = socket.socket()
+                self.control_socket.settimeout(2)
                 self.control_socket.connect(("127.0.0.1", peer_port))
+                if self.control_socket:
+                    self.client_response = client_response(self.control_socket)
+                    self.client_response.setDaemon(True)
+                    self.client_response.start()
+                    break
             except ConnectionRefusedError:
-                print("Connection refused - check port number")
-                time.sleep(10)
+                # print("Connection refused - check port number")
                 continue
             except OSError:
-                print("Connect request was made on an already connected socket or the server is not listening on that port.")
-                time.sleep(10)
+                # print("Connect request was made on an already connected socket or the server is not listening on that port.")
                 continue
 
-            self.client_response = client_response(self.control_socket)
-            self.client_response.setDaemon(True)
-            self.client_response.start()
+        self.authenticate(["authenticate","user","pass"])
+        port_for_response = self.client_response.get_last_response_from_server()
+        print(port_for_response)
+        port_for_response = int(port_for_response)
+        self.get_chunks_from_server(dict['chunk_list']["2"])
+        # count = 0
+        # while len(list_of_chunks):
+        #     if self.get(["get", file]):
+        #         list_of_chunks.pop(index(file))
 
-            port_for_responses = int(self.client_response.get_last_response_from_server())
-            print(port_for_responses,"asvlanlnls")
-            self.authenticate(["authenticate","user","pass"])
-            get_chunks_from_server(list_of_chunks)
-        print("heere")
+
+
+
+
+
+
+
+
 
     def get_chunks_from_server(self,chunk_list):
+        print("askjvalnslnlsnls")
         for file in chunk_list:
             self.get(["get",file])
         return
