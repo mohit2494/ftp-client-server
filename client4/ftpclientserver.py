@@ -6,20 +6,15 @@ import threading                        # for running threads
 import os                               # for accessing files, folders on client & server
 import sys                              # sys for getting system messages
 import pdb                              # for python debugging
-import math
-from fsplit.filesplit import FileSplit
-import json
 
 ''' important control variables for data and control connection '''
 data_thread_message = ""                # variable for storing data messages
 localhost = "127.0.0.1"                 # local ip of ftp server
 encoding = "utf-8"                      # encoding standard for info. exchange
 buffer_size = 1024                      # buffer size of info. exchange
-command_port = 7711                     # port of connection of server
-data_port = 6548                        # port of data connection
-chuck_dictionary = {}
-list_of_split_files = []
-next_segment = 1
+command_port = 9400                     # port of connection of server
+data_port = 9410                        # port of data connection
+
 ''' server side data connection handler '''
 class ftp_data_handler(threading.Thread):
 
@@ -106,11 +101,11 @@ class ftp_command_handler(threading.Thread):
     def __init__(self, socket):
         self.socket = socket
         self.curr_dir = os.path.abspath("./files/")
-        self.split_dir = os.path.abspath("./files/splitfiles")
         self.data_socket = None
         threading.Thread.__init__(self)
         self.finished_running = False
         self.is_authenticated = False
+
     # run method for implementing threading.Thread
     def run(self):
         while True:
@@ -134,21 +129,10 @@ class ftp_command_handler(threading.Thread):
         password = commands[2]
         if username == "user" and password == "pass":
             self.is_authenticated = True
-            self.send_next_segment()
+            self.send_back_resp(str(data_port))
         else:
             self.is_authenticated = False
             self.send_back_resp("wrong username or password")
-
-    def send_next_segment(self):
-        global next_segment
-
-        dict_to_send = {
-        "my_segment": str(next_segment),
-        "chunk_list": chuck_dictionary
-        }
-        print(dict_to_send)
-        self.send_back_resp(json.dumps(dict_to_send))
-        next_segment+=1
 
     # method for sending back response to client
     def send_back_resp(self, msg, encoding=encoding):
@@ -184,7 +168,7 @@ class ftp_command_handler(threading.Thread):
             for file in files:
                 fs += file + "\n"
             # data thread
-            dt = ftp_data_handler(socket=data_socket, cmd ="dir", data = fs)
+                dt = ftp_data_handler(socket=data_socket, cmd ="dir", data = fs)
             self.send_back_resp("\nabout to open data connection for listing files in directory ...")
             dt.start()
             dt.join()
@@ -205,7 +189,7 @@ class ftp_command_handler(threading.Thread):
             return
         name = commands[1]
         print("trying to get file with name :"+name)
-        name = os.path.join(self.split_dir, name)
+        name = os.path.join(self.curr_dir, name)
         print("path resolved as : "+name+"...")
 
         if not os.path.exists(name):
@@ -264,58 +248,17 @@ class ftp_command_handler(threading.Thread):
             return
 
 ''' class for running ftp server and handling client connections '''
-class ftp_server:
-    def join(self,fromdir, tofile):
-        output = open(tofile, 'wb')
-        parts  = os.listdir(fromdir)
-        parts.sort()
-        for filename in parts:
-            filepath = os.path.join(fromdir, filename)
-            fileobj  = open(filepath, 'rb')
-            while 1:
-                filebytes = fileobj.read()
-                if not filebytes: break
-                output.write(filebytes)
-            fileobj.close(  )
-        output.close(  )
-
-    def split(self,fromfile, todir, chunksize):
-        if not os.path.exists(todir):                  # caller handles errors
-            os.mkdir(todir)                            # make dir, read/write parts
-        else:
-            for fname in os.listdir(todir):            # delete any existing files
-                os.remove(os.path.join(todir, fname))
-        partnum = 0
-        input = open(fromfile, 'rb')                   # use binary mode on Windows
-        while 1:                                       # eof=empty string from read
-            chunk = input.read(chunksize)              # get next part <= chunksize
-            if not chunk: break
-            partnum  = partnum+1
-            filename = os.path.join(todir, ('part%04d' % partnum))
-            fileobj  = open(filename, 'wb')
-            fileobj.write(chunk)
-            fileobj.close()                            # or simply open(  ).write(  )
-        input.close(  )
-        assert partnum <= 9999                         # join sort fails if 5 digits
-        return partnum
-
+class ftp_server(threading.Thread):
+    # basic class/socket setup
     def __init__(self):
         # self.port = 7711
-        curr_dir = os.path.abspath("./files/")
-        split_dir = os.path.abspath("./files/splitfiles")
-        fs = self.split(fromfile=str(curr_dir)+"/test.pdf", todir = split_dir, chunksize=100000)
-        for file in os.listdir(split_dir):
-            list_of_split_files.append(file)
-        no_of_files = len(list_of_split_files)
-        list_of_split_files.sort()
-        for i in range(0,no_of_files):
-            key = (i%5)+1
-            chuck_dictionary[key] = chuck_dictionary.get(key,[])+[ list_of_split_files[i]]
         self.server_socket = socket.socket()
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind(("localhost", command_port))
         self.server_socket.listen(1)
+        threading.Thread.__init__(self)
 
+    def run(self):
         while True:
             try:
                 print("\nwaiting for connection on " + self.server_socket.getsockname()[0] + ":" + str(self.server_socket.getsockname()[1]))
@@ -329,7 +272,3 @@ class ftp_server:
                 print("Unexpected error: ", sys.exc_info()[2])
                 self.server_socket.close()
                 exit()
-
-''' entry into the ftp server script '''
-if __name__ == '__main__':
-    server = ftp_server()
