@@ -291,7 +291,7 @@ class ftp_server:
             chunk = input.read(chunksize)              # get next part <= chunksize
             if not chunk: break
             partnum  = partnum+1
-            filename = os.path.join(todir, ('part%04d' % partnum))
+            filename = os.path.join(todir, ('part%04d.split' % partnum))
             fileobj  = open(filename, 'wb')
             fileobj.write(chunk)
             fileobj.close()                            # or simply open(  ).write(  )

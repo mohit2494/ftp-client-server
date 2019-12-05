@@ -161,6 +161,9 @@ class client_for_ftp:
         self.authenticate(["authenticate","user","pass"])
         _ = self.client_response.get_last_response_from_server()
         dict = json.loads(_)
+
+        print(dict['chunk_list'][dict["my_segment"]])
+
         self.get_chunks_from_server(dict['chunk_list'][dict["my_segment"]])
 
         server_thread = ftp_server()
@@ -202,32 +205,49 @@ class client_for_ftp:
         for segment_no,list in (dict['chunk_list']).items():
             if segment_no!=dict["my_segment"]:
                 list_of_chunks+=list
-        size = len(list_of_chunks)
         while(1):
-            self.get_chunks_from_server(list_of_chunks)
-            if self.completion_check(size):
+            if len(list_of_chunks):
+                self.get_chunks_from_server(list_of_chunks)
+                files_received = self.completion_check()
+                new_list_of_chunks_files = []
+                for file in list_of_chunks:
+                    if file not in files_received:
+                        new_list_of_chunks_files.append(file)
+                list_of_chunks = new_list_of_chunks_files
+            else:
                 break
+        curr_dir = os.path.abspath("./files/")
+        to_dir = os.path.abspath("./downloads")
+        self.join(curr_dir,to_dir+"/download.pdf")
 
+    def join(self,fromdir, tofile):
+        print("Combining Files")
+        output = open(tofile, 'wb')
+        parts  = os.listdir(fromdir)
+        parts.sort()
+        for filename in parts:
+            if filename.endswith(".split"):
+                filepath = os.path.join(fromdir, filename)
+                fileobj  = open(filepath, 'rb')
+                while 1:
+                    filebytes = fileobj.read()
+                    if not filebytes: break
+                    output.write(filebytes)
+                fileobj.close(  )
+        output.close(  )
 
-
-    def completion_check(self,len_list_of_chunks):
-        list_of_chunks = []
-        chuck_dictionary = {}
+    def completion_check(self):
+        files_received = {}
         curr_dir = os.path.abspath("./files/")
         for file in os.listdir(curr_dir):
-            list_of_chunks.append(file)
-        no_of_files = len(list_of_chunks)
-        return no_of_files == len_list_of_chunks
+            files_received[file]= True
+        print(files_received)
+        return files_received
 
 
     def get_chunks_from_server(self,chunk_list):
-        while len(chunk_list) != 0:
-            for file in list(chunk_list):
-                self.get(["get",file])
-                curr_dir = os.path.abspath("./files/")
-                my_file = Path(curr_dir+file)
-                if my_file.exists():
-                    chunk_list.remove(file)
+        for file in list(chunk_list):
+            self.get(["get",file])
         return
 
     # command for connecting to the ftp server
