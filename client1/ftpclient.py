@@ -207,9 +207,7 @@ class client_for_ftp:
             self.get_chunks_from_server(list_of_chunks)
             if self.completion_check(size):
                 break
-
-
-
+    
     def completion_check(self,len_list_of_chunks):
         list_of_chunks = []
         chuck_dictionary = {}
