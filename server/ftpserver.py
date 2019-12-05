@@ -7,7 +7,6 @@ import os                               # for accessing files, folders on client
 import sys                              # sys for getting system messages
 import pdb                              # for python debugging
 import math
-from fsplit.filesplit import FileSplit
 import json
 
 ''' important control variables for data and control connection '''
